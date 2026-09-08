@@ -254,10 +254,15 @@ function extractAjustesAgregado(wb) {
     const anio = fecha ? fecha.getFullYear() : null;
     const referencia = String(r[iRef]).trim().toUpperCase();
     const k = anio + "|" + mes + "|" + referencia;
-    if (!map.has(k)) map.set(k, { anio, mes, referencia, count: 0, costoNeto: 0 });
+    if (!map.has(k)) map.set(k, { anio, mes, referencia, count: 0, costoNeto: 0, costoPositivo: 0, costoNegativo: 0 });
     const o = map.get(k);
     o.count++;
-    o.costoNeto += (iCostoNeto >= 0 && typeof r[iCostoNeto] === "number" ? r[iCostoNeto] : 0);
+    const c = (iCostoNeto >= 0 && typeof r[iCostoNeto] === "number") ? r[iCostoNeto] : 0;
+    o.costoNeto += c;
+    // Positivo y negativo se acumulan por movimiento individual (no por el signo del agregado):
+    // dos movimientos que se compensan entre sí dentro del mismo mes/referencia (ej. +5M y -3M)
+    // deben seguir contando como +5M de sobrante y -3M de faltante, no netearse a +2M antes de clasificar.
+    if (c > 0) o.costoPositivo += c; else if (c < 0) o.costoNegativo += c;
   }
   return [...map.values()];
 }
