@@ -683,6 +683,13 @@ footer strong { color: rgba(255,255,255,0.8); }
     <div class="card-title">Detalle por bodega</div>
     <div class="table-scroll"><table class="data-table" id="tbl-confiabilidad-bodega"></table></div>
   </div>
+  <div class="chart-card" style="margin-bottom:1.25rem;">
+    <div class="card-title">Top 10 referencias con más ajustes</div>
+    <div class="card-sub">Por N° de movimientos de ajuste — no por valor $</div>
+    <div class="chart-wrap" id="chart-confiabilidad-referencias"></div>
+    <div class="chart-legend" id="legend-confiabilidad-referencias"></div>
+    <div class="table-scroll"><table class="data-table" id="tbl-confiabilidad-referencias"></table></div>
+  </div>
   <div class="chart-card">
     <div class="card-title">Resumen mensual</div>
     <div class="table-scroll"><table class="data-table" id="tbl-confiabilidad-mensual"></table></div>
@@ -2279,6 +2286,16 @@ function renderConfiabilidadTab(){
     ["Bodega","Ajuste positivo ($)","Ajuste negativo ($)","Ajuste neto ($)","N° de ajustes"],
     porBodega.map(o=>[o.key, o.costoPositivo, o.costoNegativo, o.costoNeto, o.count]),
     ["text","money","money","money","num"]);
+
+  // Top 10 referencias con más ajustes (por N° de movimientos, colapsando meses).
+  const porReferencia = groupAjustesBy(ajustes, r=>r.referencia).sort((a,b)=>b.count-a.count).slice(0,10);
+  ciChart("chart-confiabilidad-referencias", porReferencia.map(o=>o.key),
+    [{name:"N° de ajustes", data: porReferencia.map(o=>o.count), color:"#AE6035"}], [], {});
+  renderLegend("legend-confiabilidad-referencias", [{type:"box",label:"N° de ajustes",color:"#AE6035"}]);
+  renderDataTable("tbl-confiabilidad-referencias",
+    ["Referencia","N° de ajustes","Ajuste positivo ($)","Ajuste negativo ($)","Ajuste neto ($)"],
+    porReferencia.map(o=>[o.key, o.count, o.costoPositivo, o.costoNegativo, o.costoNeto]),
+    ["text","num","money","money","money"]);
 
   renderDataTable("tbl-confiabilidad-mensual", ["Mes","Referencias con ajuste","N° de ajustes","% Confiabilidad"],
     series.map(s=>[s.label, s.ajustadas, s.nAjustes, s.pct]), ["text","num","num","pct"]);
