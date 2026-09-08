@@ -1577,7 +1577,7 @@ function fmtCell(v, type){
   }
   if(type==="cumpletxt"){
     const s = String(v);
-    const cls = s==="Cumple" ? "semaforo-g" : (s==="No cumple" ? "semaforo-r" : (s==="Pendiente" ? "semaforo-a" : ""));
+    const cls = s==="Cumple" ? "semaforo-g" : (s==="No cumple" ? "semaforo-r" : (s==="Pendiente" || s.startsWith("Parcial") ? "semaforo-a" : ""));
     return cls ? `<span class="${cls}">● ${s}</span>` : s;
   }
   if(type==="alerta"){
@@ -1926,6 +1926,7 @@ function renderAuditoriaTab(){
     const cumplidas = estados.filter(e=>e==="Cumple").length;
     let estadoTxt;
     if(cumplidas===programadas) estadoTxt = "Cumple";
+    else if(cumplidas>0) estadoTxt = "Parcial: cumplió " + enMes.filter(r=>auditoriaEstadoCumplimiento(r)==="Cumple").map(r=>r.area).join(", ");
     else if(estados.includes("No cumple")) estadoTxt = "No cumple";
     else estadoTxt = "Pendiente";
     // Un mes "Pendiente" (ninguna auditoría vencida aún) no tiene % de cumplimiento real todavía — mostrar "—" en vez de 0%.
