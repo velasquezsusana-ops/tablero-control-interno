@@ -2172,11 +2172,17 @@ function renderConfiabilidadTab(){
   const totalCat = DATA.confiabilidad.catalogo.total || 0;
   const refsAjustadas = new Set(ajustesEnCatalogo(ajustes).map(r=>r.referencia)).size;
   const pct = totalCat ? (totalCat-refsAjustadas)/totalCat : null;
+  const ajustePos = ajustes.filter(r=>r.costoNeto>0).reduce((a,r)=>a+r.costoNeto,0);
+  const ajusteNeg = ajustes.filter(r=>r.costoNeto<0).reduce((a,r)=>a+r.costoNeto,0);
+  const ajusteTotal = ajustes.reduce((a,r)=>a+(r.costoNeto||0),0);
   document.getElementById("confiabilidad-stats").innerHTML = [
     ["Confiabilidad", pct===null?"—":fmtPct(pct), "Meta: 95%"],
     ["Referencias totales (catálogo)", totalCat, ""],
     ["Referencias con ajuste", refsAjustadas, ""],
     ["N° de ajustes registrados", sumAjustesCount(ajustes), ""],
+    ["Ajuste positivo ($)", fmtMoney(ajustePos), "Sobrantes de inventario"],
+    ["Ajuste negativo ($)", fmtMoney(ajusteNeg), "Faltantes de inventario"],
+    ["Ajuste neto total empresa ($)", fmtMoney(ajusteTotal), "Positivo + negativo"],
   ].map(([l,v,s])=>`<div class="mini-stat"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 
   ciChart("chart-confiabilidad-mes", series.map(s=>s.label),
