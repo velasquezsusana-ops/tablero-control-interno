@@ -460,7 +460,7 @@ footer strong { color: rgba(255,255,255,0.8); }
   <div id="auditoria-body">
   <div class="chart-card" style="margin-bottom:1.25rem;">
     <div class="card-title">Cumplimiento por mes programado</div>
-    <div class="card-sub">Cumple = Estado "Finalizada" o "Cerrada con plan de acción", Fecha real de cierre dentro del mismo mes programado, y Resultado general del checklist ≥ 70%. Los meses que aún no han pasado quedan en "Pendiente", no se marcan como incumplidos — meta 100%</div>
+    <div class="card-sub">Cumple = Estado "Finalizada" o "Cerrada con plan de acción" y Fecha real de cierre dentro del mismo mes programado (el resultado del checklist no afecta este %, se muestra aparte en "Resultado promedio"). Los meses que aún no han pasado quedan en "Pendiente", no se marcan como incumplidos — meta 100%</div>
     <div class="table-scroll"><table class="data-table" id="tbl-auditoria-mensual"></table></div>
   </div>
   <div class="chart-card">
@@ -1705,12 +1705,11 @@ function renderAllFilters(){
 }
 
 /* ───────── Resumen Ejecutivo ───────── */
-const AUDITORIA_RESULTADO_MIN = 0.7; // Resultado general mínimo (checklist de la auditoría) para considerarla cumplida
+// Cumple = se hizo la auditoría y se cerró dentro del mes programado — el resultado del
+// checklist NO afecta este indicador (se muestra aparte en la columna "Resultado promedio").
 function auditoriaCumplida(r){
   if(!r.estado || !/finalizad|cerrad/i.test(r.estado) || !r.fechaCierre || !r.fechaProgramada) return false;
-  const aTiempo = r.fechaCierre.getFullYear()===r.fechaProgramada.getFullYear() && r.fechaCierre.getMonth()===r.fechaProgramada.getMonth();
-  if(!aTiempo) return false;
-  return typeof r.resultadoGeneral==="number" && r.resultadoGeneral>=AUDITORIA_RESULTADO_MIN;
+  return r.fechaCierre.getFullYear()===r.fechaProgramada.getFullYear() && r.fechaCierre.getMonth()===r.fechaProgramada.getMonth();
 }
 function nowMonthKey(){
   const now = new Date();
