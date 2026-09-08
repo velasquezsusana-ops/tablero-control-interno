@@ -207,21 +207,24 @@ function extractRiesgos(wb) {
 /* ───────── extracción: catálogo de referencias (REFERENCIAS MONTOLIVO) ───────── */
 function extractCatalogo(wb) {
   const rows = sheetRows(findSheet(wb, "REFERENCIAS"));
-  if (!rows.length) return { referencias: [], porTipo: {}, total: 0 };
+  if (!rows.length) return { referencias: [], porTipo: {}, total: 0, nombres: {} };
   const header = rows[0];
   const iRef = headerIdx(header, "Referencia");
   const iTipo = headerIdx(header, "Tipo item");
+  const iDesc = headerIdx(header, "Desc. item");
   const refTipo = new Map();
+  const nombres = {};
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r || iRef < 0 || r[iRef] == null) continue;
     const ref = String(r[iRef]).trim().toUpperCase();
     if (!ref) continue;
     if (!refTipo.has(ref)) refTipo.set(ref, (iTipo >= 0 && r[iTipo] != null) ? String(r[iTipo]).trim() : "(sin tipo)");
+    if (!nombres[ref] && iDesc >= 0 && r[iDesc] != null) nombres[ref] = String(r[iDesc]).trim();
   }
   const porTipo = {};
   refTipo.forEach(tipo => { porTipo[tipo] = (porTipo[tipo] || 0) + 1; });
-  return { referencias: [...refTipo.keys()], porTipo, total: refTipo.size };
+  return { referencias: [...refTipo.keys()], porTipo, total: refTipo.size, nombres };
 }
 
 /* ───────── extracción agregada: ajustes de inventario (BASE AJUSTES) ─────────
