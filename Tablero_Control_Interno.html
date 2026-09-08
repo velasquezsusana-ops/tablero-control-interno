@@ -2154,9 +2154,9 @@ function renderRiesgosTab(){
   if(rskPage<0) rskPage = 0;
   const slice = recs.slice(rskPage*RSK_PAGE_SIZE, rskPage*RSK_PAGE_SIZE+RSK_PAGE_SIZE);
   renderDataTable("tbl-riesgos",
-    ["Área","Proceso","Riesgo identificado","Probabilidad","Impacto","Nivel inherente","Efectividad control","Nivel residual","Fecha objetivo","Estado"],
-    slice.map(r=>[r.areaHoja, r.proceso, r.riesgo, r.probabilidad, r.impactoNum, r.nivelInherente, r.efectividadControl, r.nivelResidual, r.fechaObjetivo, r.estado]),
-    ["text","text","text","num","num","text","text","text","date","estado"]
+    ["Área","Proceso","Riesgo identificado","Probabilidad","Impacto","Nivel inherente","Control establecido","Efectividad control","Nivel residual","Fecha objetivo","Estado"],
+    slice.map(r=>[r.areaHoja, r.proceso, r.riesgo, r.probabilidad, r.impactoNum, r.nivelInherente, r.controlesExistentes, r.efectividadControl, r.nivelResidual, r.fechaObjetivo, r.estado]),
+    ["text","text","text","num","num","text","longtext","text","text","date","estado"]
   );
   document.getElementById("rsk-pager-info").textContent = recs.length
     ? `Página ${rskPage+1} de ${totalPages} · ${recs.length} registros` : "0 registros";
