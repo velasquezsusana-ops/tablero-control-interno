@@ -1371,23 +1371,30 @@ function ciChart(containerId, cats, bars, lines, opts){
   const n = cats.length;
   if(!n){ cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-light);font-size:.82rem;">Sin datos para este filtro</div>'; return; }
   if(opts.horizontal){ ciChartHorizontal(cont, cats, bars, opts); return; }
-  const W = 860, H = 264;
+  const W = 860;
   const maxLabelLen = Math.max(0, ...cats.map(c=>String(c==null?"":c).length));
   const catsLargas = maxLabelLen > 8;
-  // Entre más categorías, menos espacio hay para cada una — se recorta más corto para que no se encimen.
-  let maxChars = n>8 ? 10 : (n>5 ? 13 : 16);
-  let catLabels = cats.map(c=> catsLargas ? truncateLabel(c, maxChars) : String(c==null?"":c));
-  // Si dos categorías DISTINTAS (ej. "Materia Prima IVA Pleno" vs "...IVA Exento", mismo
-  // prefijo largo) quedan con la misma etiqueta recortada, se ve como si la barra estuviera
-  // duplicada — alargar el recorte hasta que se distingan entre sí.
-  if(catsLargas){
-    const nDistintos = new Set(cats.map(c=>String(c==null?"":c))).size;
-    while(new Set(catLabels).size < nDistintos && maxChars < maxLabelLen){
-      maxChars += 4;
-      catLabels = cats.map(c=> truncateLabel(c, maxChars));
-    }
-  }
-  const padR = 14, padT = 14, padB = catsLargas ? 70 : 40;
+  // Nombres completos, sin recortar con "…" — la letra se achica lo que haga falta (entre 9.5
+  // y 6.5) para que la etiqueta más larga quepa rotada en el ancho disponible por categoría,
+  // sin encimarse con la de al lado.
+  const catLabels = cats.map(c=> String(c==null?"":c));
+  const rotDeg = 55;
+  const padR = 14, padT = 14;
+  const skipAlt = n>13; // con muchas categorías se muestra una de cada dos para no saturar
+  const labelsVisibles = catLabels.filter((c,i)=> !(skipAlt && i%2!==0));
+  const longestVisible = Math.max(0, ...labelsVisibles.map(c=>c.length));
+  const padLest = 70; // estimado de padL (el real se calcula más abajo) solo para dimensionar letra/alto
+  const spacingShown = ((W - padLest - padR)/n) * (skipAlt ? 2 : 1);
+  const catFontSize = catsLargas
+    ? Math.max(6.5, Math.min(9.5, spacingShown / (Math.max(longestVisible,1)*0.56*Math.cos(rotDeg*Math.PI/180))))
+    : 9.5;
+  // padB (espacio abajo para las etiquetas rotadas) se calcula según cuánto "cae" verticalmente
+  // la etiqueta más larga que sí se muestra al rotarla — para que no se corte, con un tope
+  // razonable de alto de gráfico.
+  const charW = catFontSize*0.56;
+  const rotDrop = catsLargas ? longestVisible*charW*Math.sin(rotDeg*Math.PI/180) : 0;
+  const padB = catsLargas ? Math.min(170, Math.max(70, 24+rotDrop)) : 40;
+  const H = catsLargas ? (14+140+padB) : 264;
 
   let allVals = [];
   bars.forEach(b=> b.data.forEach(v=>{ if(v!==null && v!==undefined) allVals.push(v); }));
@@ -1429,7 +1436,7 @@ function ciChart(containerId, cats, bars, lines, opts){
     const v = opts.sqrtScale ? Math.pow(yMinT + (yMaxT-yMinT)*frac, 2) : yMin + (yMax-yMin)*frac;
     const y = padT + plotH - frac*plotH;
     svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(122,26,46,0.08)" stroke-width="1"/>`;
-    svg += `<text x="${padL-6}" y="${y+4}" font-size="12" fill="#5A4E53" text-anchor="end" font-family="Lato" font-weight="600">${fmtY(v)}</text>`;
+    svg += `<text x="${padL-6}" y="${y+4}" font-size="10" fill="#5A4E53" text-anchor="end" font-family="Lato" font-weight="600">${fmtY(v)}</text>`;
   }
   if(yMin<0){
     svg += `<line x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}" stroke="rgba(122,26,46,0.25)" stroke-width="1.2"/>`;
@@ -1468,7 +1475,7 @@ function ciChart(containerId, cats, bars, lines, opts){
     const label = catLabels[i];
     if(catsLargas){
       const y = H - padB + 18;
-      svg += `<text x="${cx}" y="${y}" font-size="9.5" font-weight="600" fill="#4A3F44" text-anchor="end" transform="rotate(-34 ${cx} ${y})">${label}</text>`;
+      svg += `<text x="${cx}" y="${y}" font-size="${catFontSize}" font-weight="600" fill="#4A3F44" text-anchor="end" transform="rotate(-${rotDeg} ${cx} ${y})">${label}</text>`;
     } else {
       svg += `<text x="${cx}" y="${H-padB+18}" font-size="12" font-weight="600" fill="#4A3F44" text-anchor="middle">${label}</text>`;
     }
