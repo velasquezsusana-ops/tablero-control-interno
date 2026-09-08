@@ -1585,6 +1585,11 @@ function fmtCell(v, type){
     const cls = s==="En rango" ? "semaforo-g" : (s==="Atraso alto" ? "semaforo-r" : "");
     return cls ? `<span class="${cls}">● ${s}</span>` : s;
   }
+  if(type==="longtext"){
+    const s = String(v);
+    const short = s.length>90 ? s.slice(0,89)+"…" : s;
+    return `<span title="${escapeAttr(s)}" style="white-space:normal;display:block;max-width:340px;">${escapeAttr(short)}</span>`;
+  }
   return v;
 }
 function renderDataTable(tableId, headers, rows, colTypes){
@@ -2048,9 +2053,9 @@ function renderHallazgosTab(){
   if(halPage<0) halPage = 0;
   const slice = recs.slice(halPage*HAL_PAGE_SIZE, halPage*HAL_PAGE_SIZE+HAL_PAGE_SIZE);
   renderDataTable("tbl-hallazgos",
-    ["ID","Fecha identificación","Área","Tipo","Estado","Fecha compromiso","Fecha real cierre","Días atraso","Responsable"],
-    slice.map(r=>[r.id, r.fechaId, r.area, r.tipo, r.estado, r.fechaCompromiso, r.fechaReal, r.diasAtraso, r.responsable]),
-    ["text","date","text","text","estado","date","date","num","text"]
+    ["ID","Hallazgo","Fecha identificación","Área","Tipo","Estado","Fecha compromiso","Fecha real cierre","Días atraso","Responsable"],
+    slice.map(r=>[r.id, r.descripcion, r.fechaId, r.area, r.tipo, r.estado, r.fechaCompromiso, r.fechaReal, r.diasAtraso, r.responsable]),
+    ["text","longtext","date","text","text","estado","date","date","num","text"]
   );
   document.getElementById("hal-pager-info").textContent = recs.length
     ? `Página ${halPage+1} de ${totalPages} · ${recs.length} registros` : "0 registros";
