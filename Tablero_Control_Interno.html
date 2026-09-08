@@ -1119,7 +1119,9 @@ function loadEmbedded(){
     riesgos: { records: R.riesgos.records.map(r=>({...r, fechaObjetivo: reviveDate(r.fechaObjetivo)})) },
     confiabilidad: {
       catalogo: { referencias: new Set(R.confiabilidad.catalogo.referencias), porTipo: R.confiabilidad.catalogo.porTipo, total: R.confiabilidad.catalogo.total },
-      ajustes: R.confiabilidad.ajustes
+      ajustes: R.confiabilidad.ajustes,
+      ajustesPorTipo: R.confiabilidad.ajustesPorTipo || [],
+      ajustesPorBodega: R.confiabilidad.ajustesPorBodega || []
     },
     costos: { ajustes: R.confiabilidad.ajustes, salidas: R.costos.salidas, ventas: R.costos.ventas }
   };
