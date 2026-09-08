@@ -227,17 +227,16 @@ function extractCatalogo(wb) {
 /* ───────── extracción agregada: ajustes de inventario (BASE AJUSTES) ─────────
    Se agrega por (año, mes, referencia) — cada fila resultante trae "count" (n° de
    movimientos reales que representa) y "costoNeto" (suma), para no perder precisión
-   frente a la extracción fila-por-fila del tablero en vivo.
+   frente a la extracción fila-por-fila del tablero en vivo. Los desgloses por tipo de
+   inventario y por bodega se calculan aparte en extractAjustesDimension — agregar esas
+   dos dimensiones AQUÍ (junto con referencia) casi no reduce nada porque cada referencia
+   ya vive prácticamente en una sola bodega/tipo, así que el archivo se disparó de 0.5MB
+   a más de 8MB sin necesidad; separarlo lo mantiene liviano.
    La hoja se busca por nombre "GENERAL" o, si no existe, la primera que empiece con
    "AJUSTES" (el archivo la ha tenido con ambos nombres) — y las columnas se ubican
    por encabezado, no por posición fija, porque ya han cambiado de orden una vez. */
 function extractAjustesAgregado(wb) {
-  let ws = findSheet(wb, "GENERAL");
-  if (!ws) {
-    const name = wb.SheetNames.find(n => /^AJUSTES/i.test(n.trim()));
-    if (name) ws = wb.Sheets[name];
-  }
-  const rows = sheetRows(ws);
+  const rows = ajustesRows(wb);
   if (!rows.length) return [];
   const header = rows[0];
   const iRef = headerIdx(header, "Referencia");
@@ -262,6 +261,45 @@ function extractAjustesAgregado(wb) {
     // Positivo y negativo se acumulan por movimiento individual (no por el signo del agregado):
     // dos movimientos que se compensan entre sí dentro del mismo mes/referencia (ej. +5M y -3M)
     // deben seguir contando como +5M de sobrante y -3M de faltante, no netearse a +2M antes de clasificar.
+    if (c > 0) o.costoPositivo += c; else if (c < 0) o.costoNegativo += c;
+  }
+  return [...map.values()];
+}
+/* Ubica y devuelve las filas de la hoja de ajustes (misma búsqueda de hoja que extractAjustesAgregado). */
+function ajustesRows(wb) {
+  let ws = findSheet(wb, "GENERAL");
+  if (!ws) {
+    const name = wb.SheetNames.find(n => /^AJUSTES/i.test(n.trim()));
+    if (name) ws = wb.Sheets[name];
+  }
+  return sheetRows(ws);
+}
+/* Desglose de ajustes por una dimensión adicional (tipo de inventario, bodega) — agregado
+   solo por (año, mes, valor de la dimensión), sin referencia, para que quede compacto
+   (decenas de filas, no miles) sin importar cuántas referencias distintas haya. */
+function extractAjustesDimension(wb, columnaHeader) {
+  const rows = ajustesRows(wb);
+  if (!rows.length) return [];
+  const header = rows[0];
+  const iDim = headerIdx(header, columnaHeader);
+  const iCostoNeto = headerIdx(header, "Costo neto (prom.)");
+  const iFecha = headerIdx(header, "Fecha");
+  const iMes = headerIdx(header, "MES");
+  const map = new Map();
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const fecha = iFecha >= 0 ? parseFecha(r[iFecha]) : null;
+    const mesNum = iMes >= 0 ? r[iMes] : null;
+    const mes = mesNum != null && !isNaN(+mesNum) ? (+mesNum - 1) : (fecha ? fecha.getMonth() : null);
+    const anio = fecha ? fecha.getFullYear() : null;
+    const valor = (iDim >= 0 && r[iDim] != null) ? String(r[iDim]).trim() : "(sin dato)";
+    const k = anio + "|" + mes + "|" + valor;
+    if (!map.has(k)) map.set(k, { anio, mes, valor, count: 0, costoNeto: 0, costoPositivo: 0, costoNegativo: 0 });
+    const o = map.get(k);
+    o.count++;
+    const c = (iCostoNeto >= 0 && typeof r[iCostoNeto] === "number") ? r[iCostoNeto] : 0;
+    o.costoNeto += c;
     if (c > 0) o.costoPositivo += c; else if (c < 0) o.costoNegativo += c;
   }
   return [...map.values()];
@@ -326,6 +364,8 @@ function build() {
   }
 
   const ajustesAgregado = wbs.ajustes ? extractAjustesAgregado(wbs.ajustes) : [];
+  const ajustesPorTipo = wbs.ajustes ? extractAjustesDimension(wbs.ajustes, "Desc. tipo inventario") : [];
+  const ajustesPorBodega = wbs.ajustes ? extractAjustesDimension(wbs.ajustes, "Desc. Bodega") : [];
 
   const out = {
     generadoEn: new Date().toLocaleString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
@@ -338,7 +378,8 @@ function build() {
     riesgos: { records: wbs.riesgos ? extractRiesgos(wbs.riesgos) : [] },
     confiabilidad: {
       catalogo: wbs.confiab ? extractCatalogo(wbs.confiab) : { referencias: [], porTipo: {}, total: 0 },
-      ajustes: ajustesAgregado
+      ajustes: ajustesAgregado,
+      ajustesPorTipo, ajustesPorBodega
     },
     costos: {
       salidas: wbs.salidas ? extractSalidasAgregado(wbs.salidas) : [],
