@@ -1372,8 +1372,18 @@ function ciChart(containerId, cats, bars, lines, opts){
   const maxLabelLen = Math.max(0, ...cats.map(c=>String(c==null?"":c).length));
   const catsLargas = maxLabelLen > 8;
   // Entre más categorías, menos espacio hay para cada una — se recorta más corto para que no se encimen.
-  const maxChars = n>8 ? 10 : (n>5 ? 13 : 16);
-  const catLabels = cats.map(c=> catsLargas ? truncateLabel(c, maxChars) : String(c==null?"":c));
+  let maxChars = n>8 ? 10 : (n>5 ? 13 : 16);
+  let catLabels = cats.map(c=> catsLargas ? truncateLabel(c, maxChars) : String(c==null?"":c));
+  // Si dos categorías DISTINTAS (ej. "Materia Prima IVA Pleno" vs "...IVA Exento", mismo
+  // prefijo largo) quedan con la misma etiqueta recortada, se ve como si la barra estuviera
+  // duplicada — alargar el recorte hasta que se distingan entre sí.
+  if(catsLargas){
+    const nDistintos = new Set(cats.map(c=>String(c==null?"":c))).size;
+    while(new Set(catLabels).size < nDistintos && maxChars < maxLabelLen){
+      maxChars += 4;
+      catLabels = cats.map(c=> truncateLabel(c, maxChars));
+    }
+  }
   const padR = 14, padT = 14, padB = catsLargas ? 70 : 40;
 
   let allVals = [];
