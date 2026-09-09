@@ -1612,6 +1612,13 @@ function pillFor(ok, warn){
   if(warn) return ["pill-amber","⚠ Cerca del objetivo"];
   return ["pill-red","✕ No cumple"];
 }
+// Cuando no hay nada que evaluar todavía (0 de 0, sin auditorías/riesgos/controles en el
+// filtro actual), "No cumple" alarma sin motivo — no es que se haya incumplido algo, es que
+// no hay información. En ese caso se muestra un estado neutral en vez de rojo.
+function pillForConDatos(hayDatos, ok, warn){
+  if(!hayDatos) return ["pill-wine","Sin programación"];
+  return pillFor(ok, warn);
+}
 
 /* ───────── tabla genérica ───────── */
 function fmtCell(v, type){
@@ -1793,7 +1800,7 @@ function renderResumenAuditoria(fAnio,fMes){
   const okAll = evaluables.filter(auditoriaCumplida).length;
   const pendientes = recs.length - evaluables.length;
   const pct = evaluables.length ? okAll/evaluables.length : null;
-  const [pc,pt] = pillFor(pct===1, pct!==null && pct>=0.7);
+  const [pc,pt] = pillForConDatos(evaluables.length>0, pct===1, pct!==null && pct>=0.7);
   document.getElementById("kpi-auditoria").innerHTML = kpiCard("Cumplimiento del plan de auditoría",
     pct===null?"—":fmtPct(pct),
     okAll+" de "+evaluables.length+" cerradas a tiempo"+(pendientes?" · "+pendientes+" aún no vencen":""),
@@ -1827,7 +1834,7 @@ function renderResumenControles(fAnio,fMes){
   });
   const total = recs.length, ok = recs.filter(r=>/implementad/i.test(r.estado)).length;
   const pct = total ? ok/total : null;
-  const [pc,pt] = pillFor(pct!==null && pct>=1, pct!==null && pct>=0.7);
+  const [pc,pt] = pillForConDatos(total>0, pct!==null && pct>=1, pct!==null && pct>=0.7);
   document.getElementById("kpi-controles").innerHTML = kpiCard("Controles implementados",
     pct===null?"—":fmtPct(pct), ok+" de "+total+" propuestos", pc, pt, ICO.shield);
   ciChart("chart-controles", series.map(s=>s.label),
@@ -1843,7 +1850,7 @@ function renderResumenRiesgos(fAnio,fMes){
   const criticosAltos = recs.filter(r=> r.nivelResidual && /alto|cr[ií]tico/i.test(r.nivelResidual)).length;
   const cerrados = recs.filter(r=>/cerrad/i.test(r.estado)).length;
   const pctCerrados = total ? cerrados/total : null;
-  const [pc,pt] = pillFor(pctCerrados!==null && pctCerrados>=0.95, pctCerrados!==null && pctCerrados>=0.7);
+  const [pc,pt] = pillForConDatos(total>0, pctCerrados!==null && pctCerrados>=0.95, pctCerrados!==null && pctCerrados>=0.7);
   document.getElementById("kpi-riesgos").innerHTML = kpiCard("Riesgos", total,
     criticosAltos+" alto/crítico residual · "+cerrados+" mitigados", pc, pt, ICO.target);
   ciChart("chart-riesgos", areas,
