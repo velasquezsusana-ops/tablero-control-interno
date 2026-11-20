@@ -2141,6 +2141,18 @@ function reviveDate(s){
 /* Hallazgos vencidos calculados por fecha: si no está cerrado y la fecha compromiso ya pasó, se marca "Vencido"
    y se calculan los días de atraso (el Excel solo los calcula si el estado se escribe a mano como "Vencido").
    El estado original del Excel queda en r.estadoExcel. */
+/* Auditorías: si tiene fecha real de cierre pero el estado no dice cerrada, se toma como "Cerrada".
+   Si no se ha realizado (sin cierre), el "Resultado general" se muestra vacío (—) en vez del 100% que da la
+   fórmula del Excel cuando no hay ítems evaluados. Valores originales en r.estadoExcel / r.resultadoExcel. */
+function aplicarEstadoAuditorias(recs){
+  (recs||[]).forEach(r=>{
+    r.estadoExcel = r.estado; r.resultadoExcel = r.resultadoGeneral;
+    const cerrada = /finalizad|cerrad/i.test(String(r.estado||""));
+    if(!cerrada && r.fechaCierre instanceof Date) r.estado = "Cerrada";
+    if(!/finalizad|cerrad/i.test(String(r.estado||""))) r.resultadoGeneral = null;
+  });
+  return recs;
+}
 function aplicarVencimientoHallazgos(recs){
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   (recs||[]).forEach(r=>{
@@ -2175,6 +2187,7 @@ function loadEmbedded(){
     costos: { ajustes: R.confiabilidad.ajustes, salidas: R.costos.salidas, ventas: R.costos.ventas }
   };
   aplicarVencimientoHallazgos(DATA.hallazgos.records);
+  aplicarEstadoAuditorias(DATA.auditoria.records);
   setConn("live", "Datos incrustados — actualizado " + (R.generadoEn || ""));
   const btnConnect = document.getElementById("btn-connect");
   if(btnConnect) btnConnect.textContent = "🔗 Conectar carpeta en vivo";
@@ -2310,6 +2323,7 @@ async function buildData(files, missing){
 
   DATA = out;
   aplicarVencimientoHallazgos(DATA.hallazgos.records);
+  aplicarEstadoAuditorias(DATA.auditoria.records);
   setConn("live", missing.length ? ("Conectado — faltan "+missing.length+" archivo(s)") : "Conectado — datos al día");
   document.getElementById("conn-text").title = missing.length ? ("No se encontraron en la carpeta: "+missing.join(", ")) : "";
   document.getElementById("btn-connect").textContent = "🔗 Reconectar carpeta";
