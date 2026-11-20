@@ -28,9 +28,9 @@ const XLSX = require(path.join(DIR, "vendor", "xlsx.full.min.js"));
 
 const FILES = {
   auditoria: "Plan Auditoria Anual 2026.xlsx",
-  hallazgos: "Matriz de seguimiento de hallazgos.xlsx",
+  hallazgos: "Matriz de seguimiento de hallazgos 2026.xlsx",
   controles: "Seguimiento controles de hallazgos.xlsx",
-  riesgos:   "Matriz de Riesgos Montolivo.xlsx",
+  riesgos:   "Matriz de Riesgos Montolivo - Auditoria 2026.xlsx",
   confiab:   "REFERENCIAS MONTOLIVO.xlsx",
   ajustes:   "BASE AJUSTES.xlsx",
   salidas:   "BASE SALIDAS.xlsx",
