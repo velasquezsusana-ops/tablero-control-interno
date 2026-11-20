@@ -2138,6 +2138,22 @@ function reviveDate(s){
   if(!y||!m||!d) return null;
   return new Date(y, m-1, d);
 }
+/* Hallazgos vencidos calculados por fecha: si no está cerrado y la fecha compromiso ya pasó, se marca "Vencido"
+   y se calculan los días de atraso (el Excel solo los calcula si el estado se escribe a mano como "Vencido").
+   El estado original del Excel queda en r.estadoExcel. */
+function aplicarVencimientoHallazgos(recs){
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  (recs||[]).forEach(r=>{
+    r.estadoExcel = r.estado;
+    const cerrado = /cerrad/i.test(String(r.estado||""));
+    const fc = r.fechaCompromiso instanceof Date ? r.fechaCompromiso : null;
+    const fr = r.fechaReal instanceof Date ? r.fechaReal : null;
+    if(!cerrado && fc && fc < hoy){ r.estado = "Vencido"; r.diasAtraso = Math.round((hoy-fc)/86400000); }
+    else if(cerrado && fc && fr) r.diasAtraso = fr > fc ? Math.round((fr-fc)/86400000) : 0;
+    else if(!cerrado) r.diasAtraso = 0;
+  });
+  return recs;
+}
 function loadEmbedded(){
   if(typeof DATA_RAW === "undefined" || !DATA_RAW) return false;
   const R = DATA_RAW;
@@ -2158,6 +2174,7 @@ function loadEmbedded(){
     },
     costos: { ajustes: R.confiabilidad.ajustes, salidas: R.costos.salidas, ventas: R.costos.ventas }
   };
+  aplicarVencimientoHallazgos(DATA.hallazgos.records);
   setConn("live", "Datos incrustados — actualizado " + (R.generadoEn || ""));
   const btnConnect = document.getElementById("btn-connect");
   if(btnConnect) btnConnect.textContent = "🔗 Conectar carpeta en vivo";
@@ -2292,6 +2309,7 @@ async function buildData(files, missing){
   if(wbs.ventas) out.costos.ventas = extractVentas(wbs.ventas, guessAnioFromFilename(FILES.ventas));
 
   DATA = out;
+  aplicarVencimientoHallazgos(DATA.hallazgos.records);
   setConn("live", missing.length ? ("Conectado — faltan "+missing.length+" archivo(s)") : "Conectado — datos al día");
   document.getElementById("conn-text").title = missing.length ? ("No se encontraron en la carpeta: "+missing.join(", ")) : "";
   document.getElementById("btn-connect").textContent = "🔗 Reconectar carpeta";
@@ -2856,12 +2874,13 @@ function renderResumenAuditoria(fAnio,fMes){
 function renderResumenHallazgos(fAnio,fMes){
   const recs = filterRecords(DATA.hallazgos.records, fAnio, fMes);
   const series = monthlyAgg(recs).map(b=>({label:b.label, total:b.records.length}));
-  const abiertos = recs.filter(r=>/abiert/i.test(r.estado)).length;
   const cerrados = recs.filter(r=>/cerrad/i.test(r.estado)).length;
-  const pc = recs.length===0 ? "pill-wine" : (abiertos===0 ? "pill-green" : (abiertos<=2 ? "pill-amber" : "pill-red"));
-  const pt = recs.length===0 ? null : (abiertos+" abiertos");
+  const vencidos = recs.filter(r=>/vencid/i.test(r.estado)).length;
+  const abiertos = recs.length - cerrados - vencidos;
+  const pc = recs.length===0 ? "pill-wine" : (vencidos===0 ? (abiertos===0 ? "pill-green" : "pill-amber") : "pill-red");
+  const pt = recs.length===0 ? null : (vencidos ? vencidos+" vencidos" : abiertos+" abiertos");
   document.getElementById("kpi-hallazgos").innerHTML = kpiCard("Hallazgos", recs.length,
-    abiertos+" abiertos · "+cerrados+" cerrados", pc, pt, ICO.alert);
+    vencidos+" vencidos · "+abiertos+" abiertos al día · "+cerrados+" cerrados", pc, pt, ICO.alert);
   ciChart("chart-hallazgos", series.map(s=>s.label),
     [{name:"Hallazgos", data:series.map(s=>s.total), color:"#DC2626"}], [], {});
   renderLegend("legend-hallazgos", [{type:"box",label:"Hallazgos identificados",color:"#DC2626"}]);
@@ -2972,11 +2991,12 @@ function renderInsights(){
     insights.push(`Auditoría: <b>${ok} de ${total}</b> auditorías programadas están cerradas a tiempo (meta: 100%).`);
   }
   if(DATA.hallazgos.records.length){
-    const abiertos = DATA.hallazgos.records.filter(r=>/abiert/i.test(r.estado)).length;
+    const abiertos = DATA.hallazgos.records.filter(r=>!/cerrad/i.test(r.estado)).length;
+    const vencidosH = DATA.hallazgos.records.filter(r=>/vencid/i.test(r.estado)).length;
     const porArea = {};
     DATA.hallazgos.records.forEach(r=>{ porArea[r.area]=(porArea[r.area]||0)+1; });
     const top = Object.keys(porArea).sort((a,b)=>porArea[b]-porArea[a])[0];
-    insights.push(`Hallazgos: <b>${abiertos}</b> siguen abiertos. El área con más hallazgos es <b>${top}</b> (${porArea[top]}).`);
+    insights.push(`Hallazgos: <b>${abiertos}</b> siguen sin cerrar, de los cuales <b>${vencidosH}</b> ya pasaron su fecha compromiso. El área con más hallazgos es <b>${top}</b> (${porArea[top]}).`);
   }
   if(DATA.controles.records.length){
     const total = DATA.controles.records.length;
@@ -3098,7 +3118,7 @@ function renderHallazgosTab(){
   document.getElementById("hallazgos-stats").innerHTML = [
     ["Total hallazgos", total, ""],
     ["Cerrados", cerrados, ""],
-    ["Vencidos", vencidos, ""],
+    ["Vencidos", vencidos, "sin cerrar y con fecha compromiso ya pasada"],
     ["En proceso", enProceso, ""],
     ["Abiertos", abiertos, ""],
     ["Tiempo prom. de cierre", tiempoProm===null?"—":fmtNum(tiempoProm)+" días", cerradosConFecha.length+" cerrados con fecha"]
