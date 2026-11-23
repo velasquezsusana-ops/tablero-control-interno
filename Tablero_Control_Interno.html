@@ -728,6 +728,9 @@ section{padding:34px 0 6px;}#tab-comportamiento-salidas .sec-head{display:flex;a
 
 
 </style>
+<style>/* Barra de filtros por encima de las tarjetas: el backdrop-filter crea un contexto de apilamiento y los desplegables (Motivo, Bodega…) quedaban tapados */
+#tab-comportamiento-salidas .filterbar, #tab-confiabilidad .filterbar{position:relative;z-index:50;}
+</style>
 </head>
 <body>
 
