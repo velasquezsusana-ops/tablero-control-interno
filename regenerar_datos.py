@@ -17,7 +17,7 @@ CACHE = os.path.join(tempfile.gettempdir(), "montolivo_ci_cache_excel.pkl")
 F = {
     "auditoria": "Plan Auditoria Anual 2026.xlsx",
     "hallazgos": "Matriz de seguimiento de hallazgos 2026.xlsx",
-    "controles": "Seguimiento controles de hallazgos.xlsx",
+    "controles": "Tablero de Controles 2026.xlsx",
     "riesgos": "Matriz de Riesgos Montolivo - Auditoria 2026.xlsx",
     "confiab": "REFERENCIAS MONTOLIVO.xlsx",
     "ajustes": "BASE AJUSTES.xlsx",
@@ -137,14 +137,42 @@ def ext_listas(w):
         if r[2] is not None: e.append(S(r[2]))
     return {"areas": a, "tipos": t, "estados": e}
 def ext_controles(w):
-    out = []
-    for r in map(pad, find_sheet(w, "Seguimiento_Controles")[1:]):
-        if r[2] is None: continue
-        fc, fi = parse_fecha(r[4]), parse_fecha(r[6]); ff = fc or fi
-        out.append({"area": "(sin área)" if r[0] is None else S(r[0]), "riesgo": cv(r[1]), "controlPropuesto": cv(r[2]),
-            "responsable": cv(r[3]), "fechaCompromiso": d2s(fc), "estado": "Pendiente" if r[5] is None else S(r[5]),
-            "fechaImplementacion": d2s(fi), "anio": ff.year if ff else None, "mes": ff.month - 1 if ff else None})
-    return out
+    # "Tablero de Controles 2026.xlsx" — hoja Seguimiento_Controles: una fila por control con el
+    # resultado mensual (C / P / NC / NA) en 12 columnas de mes; parámetros en la hoja Listas.
+    rows = find_sheet(w, "Seguimiento_Controles")
+    nz = lambda v: re.sub(r"\s+", " ", "" if v is None else jsstr(v)).strip().lower()
+    hi = next((i for i, r in enumerate(rows) if r and nz(r[0]) == "id"), None)
+    out, meses = [], []
+    if hi is not None:
+        H = pad(rows[hi])
+        col = lambda name: next((i for i, h in enumerate(H) if nz(h) == name), -1)
+        mcols = [(i, parse_fecha(h)) for i, h in enumerate(H) if isinstance(h, (dt.datetime, dt.date)) or (i >= 13 and parse_fecha(h))]
+        mcols = [(i, d) for i, d in mcols if d][:12]
+        meses = [{"anio": d.year, "mes": d.month - 1} for _, d in mcols]
+        iObs = col("observaciones de la última revisión")
+        for r in map(pad, rows[hi + 1:]):
+            if r[0] is None or r[1] is None: continue
+            res = []
+            for (ci, d) in mcols:
+                v = r[ci]
+                if v is None or S(v) == "": continue
+                res.append({"anio": d.year, "mes": d.month - 1, "valor": S(v).upper()})
+            out.append({"id": S(r[0]), "area": S(r[1]), "ref": cv(r[2]), "control": cv(r[3]), "objetivo": cv(r[4]),
+                "prueba": cv(r[5]), "criterio": cv(r[6]), "evidencia": cv(r[7]), "tipoPrueba": None if r[8] is None else S(r[8]),
+                "frecuencia": None if r[9] is None else S(r[9]), "prioridad": None if r[10] is None else S(r[10]),
+                "responsable": cv(r[11]), "responsableAuditoria": cv(r[12]),
+                "observaciones": cv(r[iObs]) if iObs >= 0 else None, "resultados": res})
+    params = {"inicio": d2s(dt.date(meses[0]["anio"], meses[0]["mes"] + 1, 1)) if meses else None,
+              "parcial": 0.5, "meta": 0.9, "umbral": 0.7, "frecuencias": {}}
+    for r in map(pad, find_sheet(w, "Listas")[1:]):
+        k = nz(r[9]); v = r[10]
+        if r[4] is not None and isnum(r[5]): params["frecuencias"][S(r[4])] = r[5]
+        if not k or v is None: continue
+        if "inicio del periodo" in k and parse_fecha(v): params["inicio"] = d2s(parse_fecha(v))
+        elif "parcial pondera" in k and isnum(v): params["parcial"] = v
+        elif "meta de cumplimiento" in k and isnum(v): params["meta"] = v
+        elif "umbral de alerta" in k and isnum(v): params["umbral"] = v
+    return {"records": out, "meses": meses, "params": params}
 def ext_riesgos(w):
     names, sheets = w; out = []
     for name in names:
@@ -507,7 +535,7 @@ desc_bod = {**desc_bod, **{k[1:]: v for k, v in desc_bod.items() if k.startswith
 new_raw = dict(old_raw)
 new_raw["auditoria"] = {"records": ext_auditoria(W["auditoria"])}
 new_raw["hallazgos"] = {"records": ext_hallazgos(W["hallazgos"]), "listas": ext_listas(W["hallazgos"])}
-new_raw["controles"] = {"records": ext_controles(W["controles"])}
+new_raw["controles"] = ext_controles(W["controles"])
 new_raw["riesgos"] = {"records": ext_riesgos(W["riesgos"])}
 new_raw["confiabilidad"] = {"catalogo": ext_catalogo(W["confiab"]), "ajustes": ext_ajustes_agregado(W["ajustes"]),
     "ajustesPorTipo": ext_ajustes_dim(W["ajustes"], "Desc. tipo inventario"),
